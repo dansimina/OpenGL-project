@@ -22,6 +22,20 @@
 *.sublime-project
 *.sublime-workspace
 
+# Visual Studio specific
+*.user
+*.suo
+*.vcxproj.user
+*.filters
+.vs/
+*.ipch
+*.aps
+*.ncb
+*.res
+*.pch
+Debug/
+Release/
+
 # Build directories
 build/
 cmake-build-debug/
