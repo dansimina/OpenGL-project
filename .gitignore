@@ -1,0 +1,67 @@
+# Compiled source files
+*.o
+*.obj
+*.lo
+*.la
+*.al
+*.dll
+*.so
+*.so.*
+*.dylib
+*.a
+*.lib
+*.exe
+*.out
+*.app
+
+# Editor and IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Build directories
+build/
+cmake-build-debug/
+cmake-build-release/
+dist/
+Debug/
+Release/
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python virtual environments (if using Python for tools)
+venv/
+.env/
+
+# Generated files
+*.gen.cpp
+*.gen.h
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+
+# Dependencies (add specific exclusions as necessary)
+vendor/
+dependencies/
+
+# Images
+*.png
