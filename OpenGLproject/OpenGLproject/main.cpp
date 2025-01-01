@@ -98,6 +98,9 @@ GLfloat lightCubeAngle4 = 1.570796f;
 gps::Shader myBasicShader;
 gps::Shader lightCubeShader;
 
+//car animation
+bool carAnimation = true;
+
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -311,6 +314,19 @@ void processMovement() {
     }
     else {
         keyReleasedY = true;
+    }
+
+    static bool keyReleasedF = true;
+    if (pressedKeys[GLFW_KEY_F]) {
+        static bool isSolid = false;
+
+        if (keyReleasedF) {
+            keyReleasedF = false;
+            carAnimation = !carAnimation;
+        }
+    }
+    else {
+        keyReleasedF = true;
     }
 
     //miscare 
@@ -617,7 +633,9 @@ void renderCar(gps::Shader shader) {
 
     glm::mat4 aux = model;
 
-    moveCar();
+    if (carAnimation) {
+        moveCar();
+    }
 
     aux = glm::translate(aux, carPos);
 

@@ -32,7 +32,6 @@ uniform vec3 lightPos2;
 uniform vec3 lightPos3;
 uniform vec3 lightPos4;
 
-
 float constant = 1.0f; 
 float linear = 0.35f; 
 float quadratic = 0.44;
