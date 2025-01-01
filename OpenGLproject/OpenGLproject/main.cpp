@@ -58,6 +58,8 @@ GLint lightPosLoc4;
 
 GLint solidLoc;
 
+GLint modelShadowLoc;
+
 // camera
 gps::Camera myCamera(
     glm::vec3(0.0f, 2.0f, 3.0f),
@@ -97,9 +99,14 @@ GLfloat lightCubeAngle4 = 1.570796f;
 // shaders
 gps::Shader myBasicShader;
 gps::Shader lightCubeShader;
+gps::Shader depthMapShader;
 
 //car animation
 bool carAnimation = true;
+
+//shadows 
+const unsigned int SHADOW_WIDTH = 2048;
+const unsigned int SHADOW_HEIGHT = 2048;
 
 
 GLenum glCheckError_(const char *file, int line)
@@ -425,6 +432,10 @@ void initShaders() {
     lightCubeShader.loadShader(
         "shaders/lightCube.vert",
         "shaders/lightCube.frag");
+
+    depthMapShader.loadShader(
+        "shaders/depthShader.vert",
+        "shaders/depthShader.frag");
 }
 
 void initUniforms() {
@@ -484,6 +495,46 @@ void initUniforms() {
 
     lightCubeProjLoc = glGetUniformLocation(lightCubeShader.shaderProgram, "projection");
     glUniformMatrix4fv(lightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    //shadow
+    depthMapShader.useShaderProgram();
+    modelShadowLoc = glGetUniformLocation(depthMapShader.shaderProgram, "model");
+}
+
+//shadows
+GLuint shadowMapFBO;
+GLuint depthMapTexture;
+void initFBO() {
+    //TODO - Create the FBO, the depth texture and attach the depth texture to the FBO
+    glGenFramebuffers(1, &shadowMapFBO);
+
+    //create depth texture for FBO 
+    glGenTextures(1, &depthMapTexture);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+    //attach texture to FBO 
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexture, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+glm::mat4 computeLightSpaceTrMatrix() {
+    glm::mat4 lightView = glm::lookAt(lightDir, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    const GLfloat near_plane = 0.1f, far_plane = 6.0f;
+    glm::mat4 lightProjection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, near_plane, far_plane);
+    glm::mat4 lightSpaceTrMatrix = lightProjection * lightView;
+
+    return lightSpaceTrMatrix;
 }
 
 struct Point {
@@ -623,7 +674,7 @@ void moveCar() {
     currentIntermediatePoint++;
 }
 
-void renderCar(gps::Shader shader) {
+void renderCar(gps::Shader shader, bool depthPass) {
     shader.useShaderProgram();
 
     //if (ok) {
@@ -633,7 +684,7 @@ void renderCar(gps::Shader shader) {
 
     glm::mat4 aux = model;
 
-    if (carAnimation) {
+    if (carAnimation && !depthPass) {
         moveCar();
     }
 
@@ -643,20 +694,30 @@ void renderCar(gps::Shader shader) {
 
     aux = glm::scale(aux, glm::vec3(0.05f, 0.05f, 0.05f));
 
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(aux));
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    if (!depthPass) {
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+        glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    }
+    else {
+        glUniformMatrix4fv(modelShadowLoc, 1, GL_FALSE, glm::value_ptr(aux));
+    }
 
     car.Draw(shader);
 }
 
-void renderRacetrack(gps::Shader shader) {
+void renderRacetrack(gps::Shader shader, bool depthPass) {
     shader.useShaderProgram();
 
     glm::mat4 aux = model;
     aux = glm::scale(aux, glm::vec3(0.2f, 0.2f, 0.2f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(aux));
-
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    
+    if (!depthPass) {
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+        glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    }
+    else {
+        glUniformMatrix4fv(modelShadowLoc, 1, GL_FALSE, glm::value_ptr(aux));
+    }
 
     racetrack.Draw(shader);
 }
@@ -729,15 +790,44 @@ void renderLightCube4(gps::Shader shaderLightCube, gps::Shader shader) {
     glUniform3fv(lightPosLoc4, 1, glm::value_ptr(lightCubePos4));
 }
 
+void bindShadowMap() {
+    //bind the shadow map
+    myBasicShader.useShaderProgram();
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+    glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "shadowMap"), 3);
+
+    glUniformMatrix4fv(glGetUniformLocation(myBasicShader.shaderProgram, "lightSpaceTrMatrix"),
+        1,
+        GL_FALSE,
+        glm::value_ptr(computeLightSpaceTrMatrix()));
+}
+
 void renderScene() {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//glm::mat4 lightSpaceTrMatrix = computeLightSpaceTrMatrix();
+
+ //   depthMapShader.useShaderProgram();
+
+ //   glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE, glm::value_ptr(computeLightSpaceTrMatrix()));
+
+ //   glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+ //   glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+ //   glClear(GL_DEPTH_BUFFER_BIT);
+
+ //   glViewport(0, 0, myWindow.getWindowDimensions().width, myWindow.getWindowDimensions().height);
+
+    //renderRacetrack(depthMapShader, true);
+    //renderCar(depthMapShader, true);
+
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//render the scene
-
-	// render the teapot
-	//renderTeapot(myBasicShader);
-    renderRacetrack(myBasicShader);
-    renderCar(myBasicShader);
+    //bindShadowMap();
+    
+    renderRacetrack(myBasicShader, false);
+    renderCar(myBasicShader, false);
     renderLightCube1(lightCubeShader, myBasicShader);
     renderLightCube2(lightCubeShader, myBasicShader);
     renderLightCube3(lightCubeShader, myBasicShader);
