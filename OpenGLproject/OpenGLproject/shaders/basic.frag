@@ -17,12 +17,35 @@ uniform vec3 lightColor;
 uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
 
+uniform int solid;
+
 //components
 vec3 ambient;
 float ambientStrength = 0.2f;
 vec3 diffuse;
 vec3 specular;
 float specularStrength = 0.5f;
+
+//spotlight
+uniform vec3 lightPos1;
+uniform vec3 lightPos2;
+uniform vec3 lightPos3;
+uniform vec3 lightPos4;
+
+
+float constant = 1.0f; 
+float linear = 0.35f; 
+float quadratic = 0.44;
+
+float computeAttenuation(vec3 lightPos, vec4 fPosEye) {
+    //compute distance to light 
+    vec3 lightPosEye = vec3(view * vec4(lightPos, 1.0));
+    float dist = length(lightPosEye - fPosEye.xyz); 
+    //compute attenuation 
+    float att = 1.0f / (constant + linear * dist + quadratic * (dist * dist)); 
+
+    return att;
+}
 
 void computeDirLight()
 {
@@ -46,14 +69,33 @@ void computeDirLight()
     vec3 reflectDir = reflect(-lightDirN, normalEye);
     float specCoeff = pow(max(dot(viewDir, reflectDir), 0.0f), 32);
     specular = specularStrength * specCoeff * lightColor;
+
+    float att1 = computeAttenuation(lightPos1, fPosEye);
+    float att2 = computeAttenuation(lightPos2, fPosEye);
+    float att3 = computeAttenuation(lightPos3, fPosEye);
+    float att4 = computeAttenuation(lightPos4, fPosEye);
+
+    float att = max(att1, max(att2, max(att3, att4)));
+
+    ambient *= att; 
+    diffuse *= att ; 
+    specular *= att; 
 }
 
 void main() 
 {
     computeDirLight();
 
-    //compute final vertex color
-    vec3 color = min((ambient + diffuse) * texture(diffuseTexture, fTexCoords).rgb + specular * texture(specularTexture, fTexCoords).rgb, 1.0f);
+    vec3 color = vec3(0.2, 0.2, 0.2);
+
+    if(solid == 0) {
+         //compute final vertex color
+        color = min((ambient + diffuse) * texture(diffuseTexture, fTexCoords).rgb + specular * texture(specularTexture, fTexCoords).rgb, 1.0f);
+        
+    }
+    else {
+        color = min((ambient + diffuse) * color + specular * color, 1.0f);
+    }
 
     fColor = vec4(color, 1.0f);
 }

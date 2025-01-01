@@ -33,6 +33,12 @@ glm::mat3 normalMatrix;
 glm::vec3 lightDir;
 glm::vec3 lightColor;
 
+
+glm::vec3 spotlightDir = glm::vec3(0.0f, -1.0f, 0.0f);
+GLfloat cutOffAngle = 0.966f;
+GLfloat outerCutOffAngle = 0.9978f;
+
+
 // shader uniform locations
 GLint modelLoc;
 GLint viewLoc;
@@ -40,6 +46,17 @@ GLint projectionLoc;
 GLint normalMatrixLoc;
 GLint lightDirLoc;
 GLint lightColorLoc;
+
+GLint lightCubeModelLoc;
+GLint lightCubeViewLoc;
+GLint lightCubeProjLoc;
+
+GLint lightPosLoc1;
+GLint lightPosLoc2;
+GLint lightPosLoc3;
+GLint lightPosLoc4;
+
+GLint solidLoc;
 
 // camera
 gps::Camera myCamera(
@@ -52,18 +69,35 @@ GLfloat cameraSpeed = 0.1f;
 GLboolean pressedKeys[1024];
 
 // models
-gps::Model3D teapot;
-GLfloat angle;
-
-gps::Model3D car;
-glm::vec3 carLoc = glm::vec3(-4.8f, 0.2f, 1.9f);//glm::vec3(-0.65f, 4.0f, 135.0f);
-float carAngle = -1.55f;
-
-gps::Model3D garage;
+//scene
 gps::Model3D racetrack;
+GLfloat angle;
+//car
+gps::Model3D car;
+glm::vec3 carPos = glm::vec3(-4.8f, 0.2f, 1.9f);//glm::vec3(-0.65f, 4.0f, 135.0f);
+GLfloat carAngle = -1.55f;
+//light 1
+gps::Model3D lightCube1;
+glm::vec3 lightCubePos1 = glm::vec3(-5.225997f, 1.389f, -0.0f);
+GLfloat lightCubeAngle1 = 0.0f;
+//light 2
+gps::Model3D lightCube2;
+glm::vec3 lightCubePos2 = glm::vec3(0.07f, 1.389f, -7.135848f);
+GLfloat lightCubeAngle2 = 1.570796f;
+//light 3
+gps::Model3D lightCube3;
+glm::vec3 lightCubePos3 = glm::vec3(5.054009f, 1.389f, 0.977995f);
+GLfloat lightCubeAngle3 = 0.0f;
+//light 4
+gps::Model3D lightCube4;
+glm::vec3 lightCubePos4 = glm::vec3(-0.316f, 1.323f, 7.253839f);
+GLfloat lightCubeAngle4 = 1.570796f;
+
 
 // shaders
 gps::Shader myBasicShader;
+gps::Shader lightCubeShader;
+
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -100,8 +134,12 @@ void windowResizeCallback(GLFWwindow* window, int width, int height) {
 
     float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
     projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 1000.0f);
-    GLuint projectionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "projection");
+
+    myBasicShader.useShaderProgram();
     glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    lightCubeShader.useShaderProgram();
+    glUniformMatrix4fv(lightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
 }
 
 void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -158,6 +196,9 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     // compute normal matrix
     normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+
+    lightCubeShader.useShaderProgram();
+    glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 }
 
 bool ok = false;
@@ -171,6 +212,9 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix
         normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
+
+        lightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
 	if (pressedKeys[GLFW_KEY_S]) {
@@ -181,6 +225,9 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix
         normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
+
+        lightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
 	if (pressedKeys[GLFW_KEY_A]) {
@@ -191,6 +238,9 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix
         normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
+
+        lightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
 	if (pressedKeys[GLFW_KEY_D]) {
@@ -201,6 +251,9 @@ void processMovement() {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         // compute normal matrix
         normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
+
+        lightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
     if (pressedKeys[GLFW_KEY_Q]) {
@@ -209,6 +262,9 @@ void processMovement() {
         model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
         // update normal matrix
         normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
+
+        lightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
     }
 
     if (pressedKeys[GLFW_KEY_E]) {
@@ -217,6 +273,9 @@ void processMovement() {
         model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
         // update normal matrix
         normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
+
+        lightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
     }
 
     static bool keyReleasedT = true;
@@ -241,52 +300,57 @@ void processMovement() {
 
     static bool keyReleasedY = true;
     if (pressedKeys[GLFW_KEY_Y]) {
-        static bool isWireframe = false;
+        static bool isSolid = false;
 
         if (keyReleasedY) {
-            isWireframe = !isWireframe;
+            isSolid = !isSolid;
             keyReleasedY = false;
 
-            if (isWireframe) {
-                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            }
-            else {
-                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-            }
+            glUniform1i(solidLoc, isSolid ? 1 : 0);
         }
     }
     else {
         keyReleasedY = true;
     }
 
-    //miscare masina
+    //miscare 
     if (pressedKeys[GLFW_KEY_I]) {
-        carLoc.x += 0.05;
+        //carLoc.x += 0.05;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_K]) {
-        carLoc.x -= 0.05;
+        //carLoc.x -= 0.05;
+        ok = true;
+    }
+
+    if (pressedKeys[GLFW_KEY_G]) {
+        //carLoc.x += 0.05;
+        ok = true;
+    }
+
+    if (pressedKeys[GLFW_KEY_H]) {
+        //carLoc.x -= 0.05;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_J]) {
-        carLoc.z += 0.05f;
+        //carLoc.z += 0.05f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_L]) {
-        carLoc.z -= 0.05f;
+        //carLoc.z -= 0.05f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_U]) {
-        carAngle += 0.05f;
+        //carAngle += 0.05f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_O]) {
-        carAngle -= 0.05f;
+        //carAngle -= 0.05f;
         ok = true;
     }
 
@@ -329,21 +393,28 @@ void initOpenGLState() {
 }
 
 void initModels() {
-    teapot.LoadModel("models/teapot/teapot20segUT.obj");
-    car.LoadModel("models/formula 1/masinabackup.obj");
+    car.LoadModel("models/formula 1/F1Car.obj");
     racetrack.LoadModel("models/racetrack/Circuit.obj");
+    lightCube1.LoadModel("models/cube/cube.obj");
+    lightCube2.LoadModel("models/cube/cube.obj");
+    lightCube3.LoadModel("models/cube/cube.obj");
+    lightCube4.LoadModel("models/cube/cube.obj");
 }
 
 void initShaders() {
 	myBasicShader.loadShader(
         "shaders/basic.vert",
         "shaders/basic.frag");
+
+    lightCubeShader.loadShader(
+        "shaders/lightCube.vert",
+        "shaders/lightCube.frag");
 }
 
 void initUniforms() {
 	myBasicShader.useShaderProgram();
 
-    // create model matrix for teapot
+    // create model matrix
     model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelLoc = glGetUniformLocation(myBasicShader.shaderProgram, "model");
 
@@ -376,20 +447,27 @@ void initUniforms() {
 	lightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightColor");
 	// send light color to shader
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
-}
 
-void renderTeapot(gps::Shader shader) {
-    // select active shader program
-    shader.useShaderProgram();
+    //set solid on false
+    solidLoc = glGetUniformLocation(myBasicShader.shaderProgram, "solid");
+    glUniform1i(solidLoc, 0);
 
-    //send teapot model matrix data to shader
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    //light
+    lightPosLoc1 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos1");
+    lightPosLoc2 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos2");
+    lightPosLoc3 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos3");
+    lightPosLoc4 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos4");
 
-    //send teapot normal matrix data to shader
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    //light cube
+    lightCubeShader.useShaderProgram();
 
-    // draw teapot
-    teapot.Draw(shader);
+    lightCubeModelLoc = glGetUniformLocation(lightCubeShader.shaderProgram, "model");
+
+    lightCubeViewLoc = glGetUniformLocation(lightCubeShader.shaderProgram, "view");
+    glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+    lightCubeProjLoc = glGetUniformLocation(lightCubeShader.shaderProgram, "projection");
+    glUniformMatrix4fv(lightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
 }
 
 struct Point {
@@ -523,7 +601,7 @@ void moveCar() {
     float t = (float)currentIntermediatePoint / (float)intermediatePoints;
 
     // Calculăm poziția și unghiul curent folosind spline
-    carLoc = catmullRomInterpolation(points[p0].point, points[p1].point, points[p2].point, points[p3].point, t);
+    carPos = catmullRomInterpolation(points[p0].point, points[p1].point, points[p2].point, points[p3].point, t);
     carAngle = interpolateAngle(points[p1].angle, points[p2].angle, t);
 
     currentIntermediatePoint++;
@@ -531,16 +609,17 @@ void moveCar() {
 
 void renderCar(gps::Shader shader) {
     shader.useShaderProgram();
-    glm::mat4 aux = model;
 
-    if (ok) {
-        ok = false;
-        printf("pos %f %f %f angle %f\n", carLoc.x, carLoc.y, carLoc.z, carAngle);
-    }
+    //if (ok) {
+    //    ok = false;
+    //    printf("pos %f %f %f angle %f\n", carLoc.x, carLoc.y, carLoc.z, carAngle);
+    //}
+
+    glm::mat4 aux = model;
 
     moveCar();
 
-    aux = glm::translate(aux, carLoc);
+    aux = glm::translate(aux, carPos);
 
     aux = glm::rotate(aux, carAngle, glm::vec3(0, 1, 0));
 
@@ -553,19 +632,83 @@ void renderCar(gps::Shader shader) {
 }
 
 void renderRacetrack(gps::Shader shader) {
-    // select active shader program
     shader.useShaderProgram();
 
-    //send teapot model matrix data to shader
     glm::mat4 aux = model;
     aux = glm::scale(aux, glm::vec3(0.2f, 0.2f, 0.2f));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(aux));
 
-    //send teapot normal matrix data to shader
     glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 
-    // draw teapot
     racetrack.Draw(shader);
+}
+
+void renderLightCube1(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    glm::mat4 aux = model;
+    
+    aux = glm::translate(aux, lightCubePos1);
+    aux = glm::rotate(aux, lightCubeAngle1, glm::vec3(0, 1, 0));
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.012f, 0.035f));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube1.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc1, 1, glm::value_ptr(lightCubePos1));
+}
+
+void renderLightCube2(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    glm::mat4 aux = model;
+
+    aux = glm::translate(aux, lightCubePos2);
+    aux = glm::rotate(aux, lightCubeAngle2, glm::vec3(0, 1, 0));
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.012f, 0.035f));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube1.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc2, 1, glm::value_ptr(lightCubePos2));
+}
+
+void renderLightCube3(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    glm::mat4 aux = model;
+
+    aux = glm::translate(aux, lightCubePos3);
+    aux = glm::rotate(aux, lightCubeAngle3, glm::vec3(0, 1, 0));
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.012f, 0.035f));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube3.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc3, 1, glm::value_ptr(lightCubePos3));
+}
+
+void renderLightCube4(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    glm::mat4 aux = model;
+
+    aux = glm::translate(aux, lightCubePos4);
+    aux = glm::rotate(aux, lightCubeAngle4, glm::vec3(0, 1, 0));
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.012f, 0.035f));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube1.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc4, 1, glm::value_ptr(lightCubePos4));
 }
 
 void renderScene() {
@@ -575,8 +718,12 @@ void renderScene() {
 
 	// render the teapot
 	//renderTeapot(myBasicShader);
-    renderCar(myBasicShader);
     renderRacetrack(myBasicShader);
+    renderCar(myBasicShader);
+    renderLightCube1(lightCubeShader, myBasicShader);
+    renderLightCube2(lightCubeShader, myBasicShader);
+    renderLightCube3(lightCubeShader, myBasicShader);
+    renderLightCube4(lightCubeShader, myBasicShader);
 }
 
 void cleanup() {
