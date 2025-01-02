@@ -24,7 +24,7 @@ uniform int solid;
 
 //components
 vec3 ambient;
-float ambientStrength = 0.2f;
+float ambientStrength = 0.15f;
 vec3 diffuse;
 vec3 specular;
 float specularStrength = 0.5f;
@@ -79,7 +79,7 @@ void computeDirLight()
 
     float att = max(att1, max(att2, max(att3, att4)));
 
-    ambient *= att; 
+    //ambient *= att; 
     diffuse *= att ; 
     specular *= att; 
 }
