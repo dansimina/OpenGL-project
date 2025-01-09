@@ -20,7 +20,7 @@ uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D shadowMap;
 
-uniform int solid;
+uniform int solidView;
 
 //components
 vec3 ambient;
@@ -114,13 +114,13 @@ void main()
 
     vec3 color = vec3(0.2, 0.2, 0.2);
 
-    if(solid == 0) {
+    if(solidView == 0) {
          //compute final vertex color
         color = min((ambient + (1.0f - shadow) * diffuse) * texture(diffuseTexture, fTexCoords).rgb + (1.0f - shadow) * specular * texture(specularTexture, fTexCoords).rgb, 1.0f);
         
     }
     else {
-        color = min((ambient + diffuse) * color + specular * color, 1.0f);
+        color = min((ambient + (1.0f - shadow) * diffuse) * color +  (1.0f - shadow) * specular * color, 1.0f);
     }
 
     fColor = vec4(color, 1.0f);

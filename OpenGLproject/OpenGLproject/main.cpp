@@ -17,6 +17,7 @@
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Model3D.hpp"
+#include "SkyBox.hpp"
 
 #include <iostream>
 
@@ -49,8 +50,6 @@ GLint lightPosLoc1;
 GLint lightPosLoc2;
 GLint lightPosLoc3;
 GLint lightPosLoc4;
-
-GLint solidLoc;
 
 GLint modelShadowLoc;
 
@@ -88,7 +87,12 @@ GLfloat lightCubeAngle3 = 0.0f;
 gps::Model3D lightCube4;
 glm::vec3 lightCubePos4 = glm::vec3(-0.316f, 1.323f, 7.253839f);
 GLfloat lightCubeAngle4 = 1.570796f;
-
+//rear light
+gps::Model3D rearLightCube;
+glm::vec3 rearLightCubePos = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 rearLightCubeOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+GLfloat rearLightCubeAngle = 0.0f;
+//screen quad
 gps::Model3D screenQuad;
 
 
@@ -99,7 +103,7 @@ gps::Shader depthMapShader;
 gps::Shader screenQuadShader;
 
 //car animation
-bool carAnimation = true;
+bool carAnimation = false;
 
 //shadows 
 const unsigned int SHADOW_WIDTH = 4096;
@@ -107,6 +111,9 @@ const unsigned int SHADOW_HEIGHT = 4096;
 
 bool showDepthMap = false;
 
+//skybox
+gps::SkyBox mySkyBox;
+gps::Shader skyboxShader;
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -141,7 +148,7 @@ void windowResizeCallback(GLFWwindow* window, int width, int height) {
     myWindow.setWindowDimensions({ width, height });
     glViewport(0, 0, width, height);
 
-    float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+    float aspectRatio = (float) width / (float) height;
     projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 1000.0f);
 
     myBasicShader.useShaderProgram();
@@ -318,7 +325,10 @@ void processMovement() {
             isSolid = !isSolid;
             keyReleasedY = false;
 
-            glUniform1i(solidLoc, isSolid ? 1 : 0);
+            myBasicShader.useShaderProgram();
+            glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "solidView"), isSolid ? 1 : 0);
+            skyboxShader.useShaderProgram();
+            glUniform1i(glGetUniformLocation(skyboxShader.shaderProgram, "solidView"), isSolid ? 1 : 0);
         }
     }
     else {
@@ -418,8 +428,8 @@ void initOpenGLState() {
 }
 
 void initModels() {
-    car.LoadModel("models/formula 1/F1Car.obj");
-    racetrack.LoadModel("models/racetrack/Circuit.obj");
+    car.LoadModel("models/formula 1/masinabackup.obj");
+    racetrack.LoadModel("models/racetrack/CircuitUVsiGarage.obj");
     lightCube1.LoadModel("models/cube/cube.obj");
     lightCube2.LoadModel("models/cube/cube.obj");
     lightCube3.LoadModel("models/cube/cube.obj");
@@ -443,6 +453,10 @@ void initShaders() {
     screenQuadShader.loadShader(
         "shaders/screenQuad.vert", 
         "shaders/screenQuad.frag");
+
+    skyboxShader.loadShader(
+        "shaders/skyboxShader.vert", 
+        "shaders/skyboxShader.frag");
 }
 
 void initUniforms() {
@@ -483,8 +497,8 @@ void initUniforms() {
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
     //set solid on false
-    solidLoc = glGetUniformLocation(myBasicShader.shaderProgram, "solid");
-    glUniform1i(solidLoc, 0);
+    glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "solidView"), 0);
+    glUniform1i(glGetUniformLocation(skyboxShader.shaderProgram, "solidView"), 0);
 
     //light
     lightPosLoc1 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos1");
@@ -506,6 +520,21 @@ void initUniforms() {
     //shadow
     depthMapShader.useShaderProgram();
     modelShadowLoc = glGetUniformLocation(depthMapShader.shaderProgram, "model");
+
+    //skybox
+    skyboxShader.useShaderProgram();
+    glUniform3fv(glGetUniformLocation(skyboxShader.shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
+}
+
+void initSkyBox() {
+    std::vector<const GLchar*> faces;
+    faces.push_back("skybox/right.tga");
+    faces.push_back("skybox/left.tga");
+    faces.push_back("skybox/top.tga");
+    faces.push_back("skybox/bottom.tga");
+    faces.push_back("skybox/back.tga");
+    faces.push_back("skybox/front.tga");
+    mySkyBox.Load(faces);
 }
 
 struct Point {
@@ -579,12 +608,12 @@ void initPoints() {
 }
 
 //animation
-double lastTimeStamp = glfwGetTime();
-void update() {
+double lastTimeStampCarUpdate = glfwGetTime();
+void updateCarPosition() {
     double currentTime = glfwGetTime();
-    if (currentTime - lastTimeStamp >= 0.01) {
+    if (currentTime - lastTimeStampCarUpdate >= 0.01) {
         moveCar();
-        lastTimeStamp = currentTime;
+        lastTimeStampCarUpdate = currentTime;
     }
 }
 
@@ -645,15 +674,15 @@ void renderCar(gps::Shader shader, bool depthPass) {
 
     glm::mat4 aux = model;
 
-    if (carAnimation && !depthPass) {
-        update();
+    if (carAnimation) {
+        updateCarPosition();
     }
 
     aux = glm::translate(aux, carPos);
 
     aux = glm::rotate(aux, carAngle, glm::vec3(0, 1, 0));
 
-    aux = glm::scale(aux, glm::vec3(0.05f, 0.05f, 0.05f));
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.065f, 0.065f));
 
     if (!depthPass) {
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(aux));
@@ -788,6 +817,11 @@ glm::mat4 computeLightSpaceTrMatrix() {
     return lightSpaceTrMatrix;
 }
 
+void renderSkyBox(gps::Shader shader) {
+    shader.useShaderProgram();
+    mySkyBox.Draw(skyboxShader, view, projection);
+}
+
 void renderScene() {
 
     glm::mat4 lightSpaceTrMatrix = computeLightSpaceTrMatrix();
@@ -854,6 +888,8 @@ void renderScene() {
         renderLightCube2(lightCubeShader, myBasicShader);
         renderLightCube3(lightCubeShader, myBasicShader);
         renderLightCube4(lightCubeShader, myBasicShader);
+
+        renderSkyBox(skyboxShader);
     }
 }
 
@@ -880,6 +916,7 @@ int main(int argc, const char * argv[]) {
     //my initializations
     initPoints();
     initFBO();
+    initSkyBox();
 
 	glCheckError();
 	// application loop
