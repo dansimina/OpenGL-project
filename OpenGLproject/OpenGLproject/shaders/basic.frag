@@ -24,7 +24,7 @@ uniform int solidView;
 
 //components
 vec3 ambient;
-float ambientStrength = 0.15f;
+uniform float ambientStrength;
 vec3 diffuse;
 vec3 specular;
 float specularStrength = 0.5f;
@@ -35,9 +35,16 @@ uniform vec3 lightPos2;
 uniform vec3 lightPos3;
 uniform vec3 lightPos4;
 
+//rear light
+uniform vec3 rearLightPos;
+uniform int rearLightOn;
+
 float constant = 1.0f; 
 float linear = 0.35f; 
 float quadratic = 0.44;
+
+//fog
+uniform float fogDensity;
 
 float computeAttenuation(vec3 lightPos, vec4 fPosEye) {
     //compute distance to light 
@@ -58,7 +65,7 @@ void computeDirLight()
     //normalize light direction
     vec3 lightDirN = vec3(normalize(view * vec4(lightDir, 0.0f)));
 
-    //compute view direction (in eye coordinates, the viewer is situated at the origin
+    //compute view direction in eye coordinates, the viewer is situated at the origin
     vec3 viewDir = normalize(- fPosEye.xyz);
 
     //compute ambient light
@@ -79,9 +86,19 @@ void computeDirLight()
 
     float att = max(att1, max(att2, max(att3, att4)));
 
-    //ambient *= att; 
-    diffuse *= att ; 
-    specular *= att; 
+    if(rearLightOn == 1) {
+        vec3 lightPosEye = vec3(view * vec4(rearLightPos, 1.0));
+        float dist = length(lightPosEye - fPosEye.xyz); 
+        float auxAtt = 1.0f / (1.0f + 0.7f * dist + 1.8f * (dist * dist));
+
+        att = max(att, auxAtt);
+    }
+
+    if(ambientStrength <= 0.6f) {
+        ambient *= att; 
+        diffuse *= att ; 
+        specular *= att;
+    }
 }
 
 float computeShadow() {
@@ -110,7 +127,6 @@ float computeFog()
 { 
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
 
-    float fogDensity = 0.03f; 
     float fragmentDistance = length(fPosEye); 
     float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2)); 
     return clamp(fogFactor, 0.0f, 1.0f); 

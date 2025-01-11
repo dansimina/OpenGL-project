@@ -9,7 +9,7 @@ uniform vec3 lightColor;
 uniform int solidView;
 
 vec3 ambient;
-float ambientStrength = 0.15f;
+uniform float ambientStrength;
 
 void main()
 {

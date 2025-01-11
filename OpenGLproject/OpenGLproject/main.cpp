@@ -55,6 +55,10 @@ GLint lightPosLoc2;
 GLint lightPosLoc3;
 GLint lightPosLoc4;
 
+GLint rearLightOnLoc;
+GLint rearLightCubeOnLoc;
+GLint rearLightCubePosLoc;
+
 GLint modelShadowLoc;
 
 // camera
@@ -93,7 +97,6 @@ glm::vec3 lightCubePos4 = glm::vec3(-0.316f, 1.323f, 7.253839f);
 GLfloat lightCubeAngle4 = 1.570796f;
 //rear light
 gps::Model3D rearLightCube;
-glm::vec3 rearLightCubePos = glm::vec3(0.021000f, 0.517006f, 0.997991f);
 glm::vec3 rearLightCubeOffset = glm::vec3(0.992991f, 0.017006f, 0.0f);
 GLfloat rearLightCubeAngle = 0.0f;
 GLfloat rearLightCubeSize = 0.009008f;
@@ -110,6 +113,7 @@ gps::Shader rearLightCubeShader;
 
 //car animation
 bool carAnimation = false;
+bool rearLightOn = false;
 
 //shadows 
 const unsigned int SHADOW_WIDTH = 4096;
@@ -120,6 +124,17 @@ bool showDepthMap = false;
 //skybox
 gps::SkyBox mySkyBox;
 gps::Shader skyboxShader;
+
+//solid
+bool isSolid = false;
+
+//fog and ambient light
+GLint fogDensityLoc;
+GLfloat fogDensity = 0.03f;
+GLint ambientStrengthLoc;
+GLint ambientStrengthSkyBoxLoc;
+GLfloat ambientStrength = 0.15f;
+
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -165,6 +180,21 @@ void windowResizeCallback(GLFWwindow* window, int width, int height) {
 
     rearLightCubeShader.useShaderProgram();
     glUniformMatrix4fv(rearLightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
+}
+
+void updateViewMatrixForMovement() {
+    //update view matrix
+    view = myCamera.getViewMatrix();
+    myBasicShader.useShaderProgram();
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    // compute normal matrix
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+
+    lightCubeShader.useShaderProgram();
+    glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+    rearLightCubeShader.useShaderProgram();
+    glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 }
 
 void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -218,11 +248,13 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 
     myCamera.rotate(pitch, yaw);
 
-    //update view matrix
-    view = myCamera.getViewMatrix();
-    myBasicShader.useShaderProgram();
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-    // compute normal matrix
+    updateViewMatrixForMovement();
+}
+
+void updateMatrixForRotation() {
+    // update model matrix
+    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
+    // update normal matrix
     normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
 
     lightCubeShader.useShaderProgram();
@@ -234,97 +266,36 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 
 bool ok = false;
 void moveCar();
+
 void processMovement() {
 	if (pressedKeys[GLFW_KEY_W]) {
 		myCamera.move(gps::MOVE_FORWARD, cameraSpeed);
-		//update view matrix
-        view = myCamera.getViewMatrix();
-        myBasicShader.useShaderProgram();
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        // compute normal matrix
-        normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-
-        lightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        rearLightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        updateViewMatrixForMovement();
 	}
 
 	if (pressedKeys[GLFW_KEY_S]) {
 		myCamera.move(gps::MOVE_BACKWARD, cameraSpeed);
-        //update view matrix
-        view = myCamera.getViewMatrix();
-        myBasicShader.useShaderProgram();
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        // compute normal matrix
-        normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-
-        lightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        rearLightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        updateViewMatrixForMovement();
 	}
 
 	if (pressedKeys[GLFW_KEY_A]) {
 		myCamera.move(gps::MOVE_LEFT, cameraSpeed);
-        //update view matrix
-        view = myCamera.getViewMatrix();
-        myBasicShader.useShaderProgram();
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        // compute normal matrix
-        normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-
-        lightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        rearLightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        updateViewMatrixForMovement();
 	}
 
 	if (pressedKeys[GLFW_KEY_D]) {
 		myCamera.move(gps::MOVE_RIGHT, cameraSpeed);
-        //update view matrix
-        view = myCamera.getViewMatrix();
-        myBasicShader.useShaderProgram();
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        // compute normal matrix
-        normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-
-        lightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        rearLightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        updateViewMatrixForMovement();
 	}
 
     if (pressedKeys[GLFW_KEY_Q]) {
         angle -= 1.0f;
-        // update model matrix
-        model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
-        // update normal matrix
-        normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-
-        lightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        rearLightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        updateMatrixForRotation();
     }
 
     if (pressedKeys[GLFW_KEY_E]) {
         angle += 1.0f;
-        // update model matrix
-        model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0, 1, 0));
-        // update normal matrix
-        normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-
-        lightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        rearLightCubeShader.useShaderProgram();
-        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        updateMatrixForRotation();
     }
 
     static bool keyReleasedT = true;
@@ -349,14 +320,16 @@ void processMovement() {
 
     static bool keyReleasedY = true;
     if (pressedKeys[GLFW_KEY_Y]) {
-        static bool isSolid = false;
-
         if (keyReleasedY) {
             isSolid = !isSolid;
             keyReleasedY = false;
 
             myBasicShader.useShaderProgram();
             glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "solidView"), isSolid ? 1 : 0);
+
+            rearLightCubeShader.useShaderProgram();
+            glUniform1i(glGetUniformLocation(rearLightCubeShader.shaderProgram, "solidView"), isSolid ? 1 : 0);
+
             skyboxShader.useShaderProgram();
             glUniform1i(glGetUniformLocation(skyboxShader.shaderProgram, "solidView"), isSolid ? 1 : 0);
         }
@@ -380,61 +353,42 @@ void processMovement() {
 
     //miscare 
     if (pressedKeys[GLFW_KEY_I]) {
-        //carLoc.x += 0.05;
-        rearLightCubePos.x += 0.001f;
+        carPos.x += 0.05;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_K]) {
-        //carLoc.x -= 0.05;
-        rearLightCubePos.x -= 0.001f;
+        carPos.x -= 0.05;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_G]) {
-        //carLoc.x += 0.05;
-        rearLightCubePos.y -= 0.001f;
+        carPos.x += 0.05;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_H]) {
-        //carLoc.x -= 0.05;
-        rearLightCubePos.y += 0.001f;
+        carPos.x -= 0.05;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_J]) {
-        //carLoc.z += 0.05f;
-        rearLightCubePos.z += 0.001f;
+        carPos.z += 0.05f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_L]) {
-        //carLoc.z -= 0.05f;
-        rearLightCubePos.z -= 0.001f;
+        carPos.z -= 0.05f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_U]) {
-        //carAngle += 0.05f;
+        carAngle += 0.05f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_O]) {
-        //carAngle -= 0.05f;
-        ok = true;
-    }
-
-    //size
-    if (pressedKeys[GLFW_KEY_8]) {
-        //carAngle += 0.05f;
-        rearLightCubeSize -= 0.001;
-        ok = true;
-    }
-
-    if (pressedKeys[GLFW_KEY_9]) {
-        //carAngle -= 0.05f;
-        rearLightCubeSize += 0.001;
+        carAngle -= 0.05f;
         ok = true;
     }
 
@@ -451,6 +405,49 @@ void processMovement() {
     }
     else {
         keyReleasedN = true;
+    }
+
+    //update light and fog
+    if (pressedKeys[GLFW_KEY_1]) {
+        if (ambientStrength > 0.0) {
+            ambientStrength -= 0.01;
+
+            myBasicShader.useShaderProgram();
+            glUniform1f(ambientStrengthLoc, ambientStrength);
+
+            skyboxShader.useShaderProgram();
+            glUniform1f(ambientStrengthSkyBoxLoc, ambientStrength);
+        }
+    }
+
+    if (pressedKeys[GLFW_KEY_2]) {
+        if (ambientStrength < 1.0) {
+            ambientStrength += 0.01;
+
+            myBasicShader.useShaderProgram();
+            glUniform1f(ambientStrengthLoc, ambientStrength);
+
+            skyboxShader.useShaderProgram();
+            glUniform1f(ambientStrengthSkyBoxLoc, ambientStrength);
+        }
+    }
+
+    if (pressedKeys[GLFW_KEY_3]) {
+        if (fogDensity > 0.0) {
+            fogDensity -= 0.01;
+
+            myBasicShader.useShaderProgram();
+            glUniform1f(fogDensityLoc, fogDensity);
+        }
+    }
+
+    if (pressedKeys[GLFW_KEY_4]) {
+        if (fogDensity < 0.3) {
+            fogDensity += 0.01;
+
+            myBasicShader.useShaderProgram();
+            glUniform1f(fogDensityLoc, fogDensity);
+        }
     }
 }
 
@@ -560,6 +557,17 @@ void initUniforms() {
     lightPosLoc3 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos3");
     lightPosLoc4 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos4");
 
+    rearLightCubePosLoc = glGetUniformLocation(myBasicShader.shaderProgram, "rearLightPos");
+    rearLightOnLoc = glGetUniformLocation(myBasicShader.shaderProgram, "rearLightOn");
+    glUniform1i(rearLightCubeOnLoc, rearLightOn ? 1 : 0);
+
+    //ambient strenght and fog density
+    ambientStrengthLoc = glGetUniformLocation(myBasicShader.shaderProgram, "ambientStrength");
+    glUniform1f(ambientStrengthLoc, ambientStrength);
+    
+    fogDensityLoc = glGetUniformLocation(myBasicShader.shaderProgram, "fogDensity");
+    glUniform1f(fogDensityLoc, fogDensity);
+
     //light cube
     lightCubeShader.useShaderProgram();
 
@@ -579,8 +587,13 @@ void initUniforms() {
     rearLightCubeViewLoc = glGetUniformLocation(rearLightCubeShader.shaderProgram, "view");
     glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-    rearLightCubeProjLoc = glGetUniformLocation(lightCubeShader.shaderProgram, "projection");
+    rearLightCubeProjLoc = glGetUniformLocation(rearLightCubeShader.shaderProgram, "projection");
     glUniformMatrix4fv(lightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    rearLightCubeOnLoc = glGetUniformLocation(rearLightCubeShader.shaderProgram, "rearLightOn");
+    glUniform1i(rearLightCubeOnLoc, rearLightOn ? 1 : 0);
+
+    glUniform1i(glGetUniformLocation(rearLightCubeShader.shaderProgram, "solidView"), isSolid ? 1 : 0);
 
     //shadow
     depthMapShader.useShaderProgram();
@@ -590,6 +603,9 @@ void initUniforms() {
     skyboxShader.useShaderProgram();
     glUniform3fv(glGetUniformLocation(skyboxShader.shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
     glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "solidView"), 0);
+
+    ambientStrengthSkyBoxLoc = glGetUniformLocation(myBasicShader.shaderProgram, "ambientStrength");
+    glUniform1f(ambientStrengthSkyBoxLoc, ambientStrength);
 }
 
 void initSkyBox() {
@@ -733,16 +749,7 @@ void moveCar() {
 void renderCar(gps::Shader shader, bool depthPass) {
     shader.useShaderProgram();
 
-    //if (ok) {
-    //    ok = false;
-    //    printf("pos %f %f %f angle %f\n", carLoc.x, carLoc.y, carLoc.z, carAngle);
-    //}
-
     glm::mat4 aux = model;
-
-    if (carAnimation) {
-        updateCarPosition();
-    }
 
     aux = glm::translate(aux, carPos);
 
@@ -846,13 +853,31 @@ void renderLightCube4(gps::Shader shaderLightCube, gps::Shader shader) {
     glUniform3fv(lightPosLoc4, 1, glm::value_ptr(lightCubePos4));
 }
 
-void renderRearLightCube(gps::Shader shaderLightCube, gps::Shader shader) {
-    shaderLightCube.useShaderProgram();
+double lastTimeStampLightUpdate = glfwGetTime();
+void updateLight() {
+    double currentTime = glfwGetTime();
+    if (currentTime - lastTimeStampLightUpdate >= 0.5) {
+        rearLightOn = !rearLightOn;
 
-    if (ok) {
-        ok = false;
-        printf("pos %f %f %f angle %f size %f\n", rearLightCubePos.x, rearLightCubePos.y, rearLightCubePos.z, rearLightCubeAngle, rearLightCubeSize);
+        lastTimeStampLightUpdate = currentTime;
+
+        myBasicShader.useShaderProgram();
+        glUniform1i(rearLightOnLoc, rearLightOn ? 1 : 0);
+
+        rearLightCubeShader.useShaderProgram();
+        glUniform1i(rearLightCubeOnLoc, rearLightOn ? 1 : 0);
     }
+}
+
+void renderRearLightCube(gps::Shader shaderLightCube, gps::Shader shader) {
+    glm::vec4 transformedPos = glm::vec4(rearLightCubeOffset, 1.0f);
+    glm::mat4 transformMatrix = glm::mat4(1.0f);
+    transformMatrix = glm::translate(transformMatrix, carPos);
+    transformMatrix = glm::rotate(transformMatrix, carAngle, glm::vec3(0, 1, 0));
+    transformedPos = transformMatrix * transformedPos;
+    glm::vec3 lightPos = glm::vec3(transformedPos);
+
+    shaderLightCube.useShaderProgram();
 
     glm::mat4 aux = model;
 
@@ -866,7 +891,7 @@ void renderRearLightCube(gps::Shader shaderLightCube, gps::Shader shader) {
     lightCube1.Draw(shaderLightCube);
 
     shader.useShaderProgram();
-    glUniform3fv(lightPosLoc4, 1, glm::value_ptr(rearLightCubePos));
+    glUniform3fv(rearLightCubePosLoc, 1, glm::value_ptr(lightPos));
 }
 
 //shadows
@@ -911,7 +936,17 @@ void renderSkyBox(gps::Shader shader) {
     mySkyBox.Draw(skyboxShader, view, projection);
 }
 
+void animations() {
+    if (carAnimation) {
+        updateCarPosition();
+    }
+
+    updateLight();
+}
+
 void renderScene() {
+
+    animations();
 
     glm::mat4 lightSpaceTrMatrix = computeLightSpaceTrMatrix();
 
