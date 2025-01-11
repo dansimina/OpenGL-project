@@ -46,6 +46,10 @@ GLint lightCubeModelLoc;
 GLint lightCubeViewLoc;
 GLint lightCubeProjLoc;
 
+GLint rearLightCubeModelLoc;
+GLint rearLightCubeViewLoc;
+GLint rearLightCubeProjLoc;
+
 GLint lightPosLoc1;
 GLint lightPosLoc2;
 GLint lightPosLoc3;
@@ -89,9 +93,10 @@ glm::vec3 lightCubePos4 = glm::vec3(-0.316f, 1.323f, 7.253839f);
 GLfloat lightCubeAngle4 = 1.570796f;
 //rear light
 gps::Model3D rearLightCube;
-glm::vec3 rearLightCubePos = glm::vec3(0.0f, 1.0f, 0.0f);
-glm::vec3 rearLightCubeOffset = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 rearLightCubePos = glm::vec3(0.021000f, 0.517006f, 0.997991f);
+glm::vec3 rearLightCubeOffset = glm::vec3(0.992991f, 0.017006f, 0.0f);
 GLfloat rearLightCubeAngle = 0.0f;
+GLfloat rearLightCubeSize = 0.009008f;
 //screen quad
 gps::Model3D screenQuad;
 
@@ -101,6 +106,7 @@ gps::Shader myBasicShader;
 gps::Shader lightCubeShader;
 gps::Shader depthMapShader;
 gps::Shader screenQuadShader;
+gps::Shader rearLightCubeShader;
 
 //car animation
 bool carAnimation = false;
@@ -156,6 +162,9 @@ void windowResizeCallback(GLFWwindow* window, int width, int height) {
 
     lightCubeShader.useShaderProgram();
     glUniformMatrix4fv(lightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    rearLightCubeShader.useShaderProgram();
+    glUniformMatrix4fv(rearLightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
 }
 
 void keyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -218,6 +227,9 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
 
     lightCubeShader.useShaderProgram();
     glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+    rearLightCubeShader.useShaderProgram();
+    glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 }
 
 bool ok = false;
@@ -234,6 +246,9 @@ void processMovement() {
 
         lightCubeShader.useShaderProgram();
         glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        rearLightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
 	if (pressedKeys[GLFW_KEY_S]) {
@@ -247,6 +262,9 @@ void processMovement() {
 
         lightCubeShader.useShaderProgram();
         glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        rearLightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
 	if (pressedKeys[GLFW_KEY_A]) {
@@ -260,6 +278,9 @@ void processMovement() {
 
         lightCubeShader.useShaderProgram();
         glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        rearLightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
 	if (pressedKeys[GLFW_KEY_D]) {
@@ -273,6 +294,9 @@ void processMovement() {
 
         lightCubeShader.useShaderProgram();
         glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        rearLightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 	}
 
     if (pressedKeys[GLFW_KEY_Q]) {
@@ -284,6 +308,9 @@ void processMovement() {
 
         lightCubeShader.useShaderProgram();
         glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        rearLightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
     }
 
     if (pressedKeys[GLFW_KEY_E]) {
@@ -295,6 +322,9 @@ void processMovement() {
 
         lightCubeShader.useShaderProgram();
         glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        rearLightCubeShader.useShaderProgram();
+        glUniformMatrix4fv(rearLightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
     }
 
     static bool keyReleasedT = true;
@@ -351,31 +381,37 @@ void processMovement() {
     //miscare 
     if (pressedKeys[GLFW_KEY_I]) {
         //carLoc.x += 0.05;
+        rearLightCubePos.x += 0.001f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_K]) {
         //carLoc.x -= 0.05;
+        rearLightCubePos.x -= 0.001f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_G]) {
         //carLoc.x += 0.05;
+        rearLightCubePos.y -= 0.001f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_H]) {
         //carLoc.x -= 0.05;
+        rearLightCubePos.y += 0.001f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_J]) {
         //carLoc.z += 0.05f;
+        rearLightCubePos.z += 0.001f;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_L]) {
         //carLoc.z -= 0.05f;
+        rearLightCubePos.z -= 0.001f;
         ok = true;
     }
 
@@ -386,6 +422,19 @@ void processMovement() {
 
     if (pressedKeys[GLFW_KEY_O]) {
         //carAngle -= 0.05f;
+        ok = true;
+    }
+
+    //size
+    if (pressedKeys[GLFW_KEY_8]) {
+        //carAngle += 0.05f;
+        rearLightCubeSize -= 0.001;
+        ok = true;
+    }
+
+    if (pressedKeys[GLFW_KEY_9]) {
+        //carAngle -= 0.05f;
+        rearLightCubeSize += 0.001;
         ok = true;
     }
 
@@ -435,6 +484,7 @@ void initModels() {
     lightCube3.LoadModel("models/cube/cube.obj");
     lightCube4.LoadModel("models/cube/cube.obj");
     screenQuad.LoadModel("models/quad/quad.obj");
+    rearLightCube.LoadModel("models/cube/cube.obj");
 }
 
 void initShaders() {
@@ -457,6 +507,10 @@ void initShaders() {
     skyboxShader.loadShader(
         "shaders/skyboxShader.vert", 
         "shaders/skyboxShader.frag");
+
+    rearLightCubeShader.loadShader(
+        "shaders/rearLightCube.vert",
+        "shaders/rearLightCube.frag");
 }
 
 void initUniforms() {
@@ -515,6 +569,17 @@ void initUniforms() {
     glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
     lightCubeProjLoc = glGetUniformLocation(lightCubeShader.shaderProgram, "projection");
+    glUniformMatrix4fv(lightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    //rear light cube
+    rearLightCubeShader.useShaderProgram();
+
+    rearLightCubeModelLoc = glGetUniformLocation(rearLightCubeShader.shaderProgram, "model");
+
+    rearLightCubeViewLoc = glGetUniformLocation(rearLightCubeShader.shaderProgram, "view");
+    glUniformMatrix4fv(lightCubeViewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+    rearLightCubeProjLoc = glGetUniformLocation(lightCubeShader.shaderProgram, "projection");
     glUniformMatrix4fv(lightCubeProjLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
     //shadow
@@ -781,6 +846,29 @@ void renderLightCube4(gps::Shader shaderLightCube, gps::Shader shader) {
     glUniform3fv(lightPosLoc4, 1, glm::value_ptr(lightCubePos4));
 }
 
+void renderRearLightCube(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    if (ok) {
+        ok = false;
+        printf("pos %f %f %f angle %f size %f\n", rearLightCubePos.x, rearLightCubePos.y, rearLightCubePos.z, rearLightCubeAngle, rearLightCubeSize);
+    }
+
+    glm::mat4 aux = model;
+
+    aux = glm::translate(aux, carPos);
+    aux = glm::rotate(aux, carAngle, glm::vec3(0, 1, 0));
+    aux = glm::translate(aux, rearLightCubeOffset);
+    aux = glm::scale(aux, glm::vec3(rearLightCubeSize, rearLightCubeSize, rearLightCubeSize));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube1.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc4, 1, glm::value_ptr(rearLightCubePos));
+}
+
 //shadows
 GLuint shadowMapFBO;
 GLuint depthMapTexture;
@@ -889,6 +977,8 @@ void renderScene() {
         renderLightCube2(lightCubeShader, myBasicShader);
         renderLightCube3(lightCubeShader, myBasicShader);
         renderLightCube4(lightCubeShader, myBasicShader);
+
+        renderRearLightCube(rearLightCubeShader, myBasicShader);
 
         renderSkyBox(skyboxShader);
     }
