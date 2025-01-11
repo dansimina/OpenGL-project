@@ -524,6 +524,7 @@ void initUniforms() {
     //skybox
     skyboxShader.useShaderProgram();
     glUniform3fv(glGetUniformLocation(skyboxShader.shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
+    glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "solidView"), 0);
 }
 
 void initSkyBox() {

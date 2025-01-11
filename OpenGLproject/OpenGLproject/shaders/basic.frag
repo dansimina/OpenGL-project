@@ -106,6 +106,16 @@ float computeShadow() {
 	return shadow;
 }
 
+float computeFog() 
+{ 
+    vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
+
+    float fogDensity = 0.03f; 
+    float fragmentDistance = length(fPosEye); 
+    float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2)); 
+    return clamp(fogFactor, 0.0f, 1.0f); 
+} 
+
 void main() 
 {
     float shadow = computeShadow(); 
@@ -115,12 +125,16 @@ void main()
     vec3 color = vec3(0.2, 0.2, 0.2);
 
     if(solidView == 0) {
-         //compute final vertex color
-        color = min((ambient + (1.0f - shadow) * diffuse) * texture(diffuseTexture, fTexCoords).rgb + (1.0f - shadow) * specular * texture(specularTexture, fTexCoords).rgb, 1.0f);
+        //compute final vertex color
+        vec3 auxColor = min((ambient + (1.0f - shadow) * diffuse) * texture(diffuseTexture, fTexCoords).rgb + (1.0f - shadow) * specular * texture(specularTexture, fTexCoords).rgb, 1.0f);
         
+        //fog 
+        float fogFactor = computeFog(); 
+        vec3 fogColor = vec3(0.5f, 0.5f, 0.5f); 
+        color = fogColor * (1.0 - fogFactor) + auxColor * fogFactor;
     }
     else {
-        color = min((ambient + (1.0f - shadow) * diffuse) * color +  (1.0f - shadow) * specular * color, 1.0f);
+        color = min((ambient + (1.0f - shadow) * diffuse) * color + (1.0f - shadow) * specular * color, 1.0f);
     }
 
     fColor = vec4(color, 1.0f);
