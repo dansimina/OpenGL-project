@@ -70,6 +70,7 @@ void computeDirLight()
 
     //compute ambient light
     ambient = ambientStrength * lightColor;
+    vec3 ambientPointLight = 0.6 * lightColor;
 
     //compute diffuse light
     diffuse = max(dot(normalEye, lightDirN), 0.0f) * lightColor;
@@ -93,12 +94,10 @@ void computeDirLight()
 
         att = max(att, auxAtt);
     }
-
-    if(ambientStrength <= 0.6f) {
-        ambient *= att; 
-        diffuse *= att ; 
-        specular *= att;
-    }
+   
+    ambient = 0.5 * ambient + 0.5 * ambientPointLight * att; 
+    diffuse *= att; 
+    specular *= att;
 }
 
 float computeShadow() {

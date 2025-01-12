@@ -426,7 +426,7 @@ void processMovement() {
 
     //update light and fog
     if (pressedKeys[GLFW_KEY_1]) {
-        if (ambientStrength > 0.0) {
+        if (ambientStrength > 0.05) {
             ambientStrength -= 0.01;
 
             myBasicShader.useShaderProgram();
@@ -438,7 +438,7 @@ void processMovement() {
     }
 
     if (pressedKeys[GLFW_KEY_2]) {
-        if (ambientStrength < 1.0) {
+        if (ambientStrength < 0.6) {
             ambientStrength += 0.01;
 
             myBasicShader.useShaderProgram();
@@ -990,6 +990,9 @@ void drawRain() {
     glUniformMatrix4fv(viewRainLoc, 1, GL_FALSE, glm::value_ptr(view));
 
     glBindVertexArray(vao);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
 
     glDrawArrays(GL_POINTS, 0, raindrops.size());
 
