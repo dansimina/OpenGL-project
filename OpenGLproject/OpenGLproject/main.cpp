@@ -20,6 +20,8 @@
 #include "SkyBox.hpp"
 
 #include <iostream>
+#include <vector>
+#include <random>
 
 // window
 gps::Window myWindow;
@@ -103,16 +105,16 @@ GLfloat rearLightCubeSize = 0.009008f;
 //screen quad
 gps::Model3D screenQuad;
 
-
 // shaders
 gps::Shader myBasicShader;
 gps::Shader lightCubeShader;
 gps::Shader depthMapShader;
 gps::Shader screenQuadShader;
 gps::Shader rearLightCubeShader;
+gps::Shader rainShaderProgram;
 
 //car animation
-bool carAnimation = false;
+bool carAnimation = true;
 bool rearLightOn = false;
 
 //shadows 
@@ -135,6 +137,10 @@ GLint ambientStrengthLoc;
 GLint ambientStrengthSkyBoxLoc;
 GLfloat ambientStrength = 0.15f;
 
+//rain
+bool rainOn = true;
+GLint projectionRainLoc;
+GLint viewRainLoc;
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -340,7 +346,6 @@ void processMovement() {
 
     static bool keyReleasedF = true;
     if (pressedKeys[GLFW_KEY_F]) {
-        static bool isSolid = false;
 
         if (keyReleasedF) {
             keyReleasedF = false;
@@ -349,6 +354,18 @@ void processMovement() {
     }
     else {
         keyReleasedF = true;
+    }
+
+    static bool keyReleasedZ = true;
+    if (pressedKeys[GLFW_KEY_Z]) {
+
+        if (keyReleasedZ) {
+            keyReleasedZ = false;
+            rainOn = !rainOn;
+        }
+    }
+    else {
+        keyReleasedZ = true;
     }
 
     //miscare 
@@ -394,10 +411,8 @@ void processMovement() {
 
     static bool keyReleasedN = true;
     if (pressedKeys[GLFW_KEY_N]) {
-        static bool isWireframe = false;
 
         if (keyReleasedN) {
-            isWireframe = !isWireframe;
             keyReleasedN = false;
 
             moveCar();
@@ -406,6 +421,8 @@ void processMovement() {
     else {
         keyReleasedN = true;
     }
+
+
 
     //update light and fog
     if (pressedKeys[GLFW_KEY_1]) {
@@ -508,6 +525,10 @@ void initShaders() {
     rearLightCubeShader.loadShader(
         "shaders/rearLightCube.vert",
         "shaders/rearLightCube.frag");
+
+    rainShaderProgram.loadShader(
+        "shaders/rain.vert",
+        "shaders/rain.frag");
 }
 
 void initUniforms() {
@@ -606,6 +627,11 @@ void initUniforms() {
 
     ambientStrengthSkyBoxLoc = glGetUniformLocation(myBasicShader.shaderProgram, "ambientStrength");
     glUniform1f(ambientStrengthSkyBoxLoc, ambientStrength);
+
+    //rain
+    rainShaderProgram.useShaderProgram();
+    projectionRainLoc = glGetUniformLocation(rainShaderProgram.shaderProgram, "projection");
+    viewRainLoc = glGetUniformLocation(rainShaderProgram.shaderProgram, "view");
 }
 
 void initSkyBox() {
@@ -712,7 +738,6 @@ glm::vec3 catmullRomInterpolation(const glm::vec3& p0, const glm::vec3& p1, cons
 }
 
 float interpolateAngle(float a0, float a1, float t) {
-    // Ensuring the shortest path for angular interpolation
     float diff = a1 - a0;
     if (diff > glm::pi<float>()) {
         diff -= glm::two_pi<float>();
@@ -730,16 +755,13 @@ void moveCar() {
         currentPoint = (currentPoint + 1) % totalPoints;
     }
 
-    // Indicii pentru Catmull-Rom
     int p0 = (currentPoint - 1 + totalPoints) % totalPoints;
     int p1 = currentPoint;
     int p2 = (currentPoint + 1) % totalPoints;
     int p3 = (currentPoint + 2) % totalPoints;
 
-    // Parametrul de interpolare
     float t = (float)currentIntermediatePoint / (float)intermediatePoints;
 
-    // Calculăm poziția și unghiul curent folosind spline
     carPos = catmullRomInterpolation(points[p0].point, points[p1].point, points[p2].point, points[p3].point, t);
     carAngle = interpolateAngle(points[p1].angle, points[p2].angle, t);
 
@@ -894,6 +916,91 @@ void renderRearLightCube(gps::Shader shaderLightCube, gps::Shader shader) {
     glUniform3fv(rearLightCubePosLoc, 1, glm::value_ptr(lightPos));
 }
 
+void renderSkyBox(gps::Shader shader) {
+    shader.useShaderProgram();
+    mySkyBox.Draw(skyboxShader, view, projection);
+}
+
+void animations() {
+    if (carAnimation) {
+        updateCarPosition();
+    }
+
+    updateLight();
+}
+
+//rain
+struct Raindrop {
+    float x, y, z;
+    float speed;
+};
+
+std::vector<Raindrop> raindrops;
+GLuint vao, vbo;
+
+float randomFloat(float min, float max) {
+    return min + (rand() % 1000) * (max - min) / 1000.0f;
+}
+
+void initRain(int numDrops) {
+    for (int i = 0; i < numDrops; i++) {
+        raindrops.push_back({
+            randomFloat(-10.0f, 10.0f),  // x
+            randomFloat(0.0f, 20.0f),    // y
+            randomFloat(-10.0f, 10.0f),  // z
+            randomFloat(0.1f, 0.2f)
+            });
+    }
+
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+}
+
+void updateRain() {
+    for (auto& drop : raindrops) {
+        drop.y -= drop.speed;
+        if (drop.y < 0.0f) {
+            drop.y = 20.0f;
+            drop.speed = randomFloat(0.1f, 0.2f);
+        }
+    }
+
+    // Update buffer with new positions
+    std::vector<float> positions;
+    for (const auto& drop : raindrops) {
+        positions.push_back(drop.x);
+        positions.push_back(drop.y);
+        positions.push_back(drop.z);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(float), positions.data(), GL_DYNAMIC_DRAW);
+}
+
+void drawRain() {
+    rainShaderProgram.useShaderProgram();
+
+    glUniformMatrix4fv(projectionRainLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(viewRainLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+    glBindVertexArray(vao);
+
+    glDrawArrays(GL_POINTS, 0, raindrops.size());
+
+    glDisable(GL_BLEND);
+}
+
+void cleanupRain() {
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+}
+
 //shadows
 GLuint shadowMapFBO;
 GLuint depthMapTexture;
@@ -929,19 +1036,6 @@ glm::mat4 computeLightSpaceTrMatrix() {
     glm::mat4 lightSpaceTrMatrix = lightProjection * lightView;
 
     return lightSpaceTrMatrix;
-}
-
-void renderSkyBox(gps::Shader shader) {
-    shader.useShaderProgram();
-    mySkyBox.Draw(skyboxShader, view, projection);
-}
-
-void animations() {
-    if (carAnimation) {
-        updateCarPosition();
-    }
-
-    updateLight();
 }
 
 void renderScene() {
@@ -1016,6 +1110,11 @@ void renderScene() {
         renderRearLightCube(rearLightCubeShader, myBasicShader);
 
         renderSkyBox(skyboxShader);
+
+        if (rainOn) {
+            updateRain();
+            drawRain();
+        }
     }
 }
 
@@ -1043,6 +1142,7 @@ int main(int argc, const char * argv[]) {
     initPoints();
     initFBO();
     initSkyBox();
+    initRain(5000);
 
 	glCheckError();
 	// application loop
@@ -1056,6 +1156,7 @@ int main(int argc, const char * argv[]) {
 		glCheckError();
 	}
 
+    cleanupRain();
 	cleanup();
 
     return EXIT_SUCCESS;
