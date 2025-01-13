@@ -73,6 +73,9 @@ GLfloat cameraSpeed = 0.1f;
 
 GLboolean pressedKeys[1024];
 
+bool cameraAnimation = false;
+glm::vec3 cameraOffset = glm::vec3(1.992991f, 0.837006f, 0.0f);
+
 // models
 //scene
 gps::Model3D racetrack;
@@ -366,6 +369,19 @@ void processMovement() {
     }
     else {
         keyReleasedZ = true;
+    }
+
+    //animatie camera
+    static bool keyReleasedV = true;
+    if (pressedKeys[GLFW_KEY_V]) {
+
+        if (keyReleasedV) {
+            keyReleasedV = false;
+            cameraAnimation = !cameraAnimation;
+        }
+    }
+    else {
+        keyReleasedV = true;
     }
 
     //miscare 
@@ -1004,6 +1020,18 @@ void cleanupRain() {
     glDeleteBuffers(1, &vbo);
 }
 
+//camera
+void moveCamera() {
+    glm::vec4 transformedPos = glm::vec4(cameraOffset, 1.0f);
+    glm::mat4 transformMatrix = glm::mat4(1.0f);
+    transformMatrix = glm::translate(transformMatrix, carPos);
+    transformMatrix = glm::rotate(transformMatrix, carAngle, glm::vec3(0, 1, 0));
+    transformedPos = transformMatrix * transformedPos;
+
+    myCamera.setCamera(transformedPos, carPos);
+    updateViewMatrixForMovement();
+}
+
 //shadows
 GLuint shadowMapFBO;
 GLuint depthMapTexture;
@@ -1117,6 +1145,10 @@ void renderScene() {
         if (rainOn) {
             updateRain();
             drawRain();
+        }
+
+        if (cameraAnimation) {
+            moveCamera();
         }
     }
 }
