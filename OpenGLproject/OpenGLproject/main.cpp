@@ -396,12 +396,14 @@ void processMovement() {
     }
 
     if (pressedKeys[GLFW_KEY_G]) {
-        carPos.x += 0.05;
+        carPos.y += 0.05;
         ok = true;
     }
 
     if (pressedKeys[GLFW_KEY_H]) {
-        carPos.x -= 0.05;
+        if (carPos.y > 0) {
+            carPos.y -= 0.05;
+        }
         ok = true;
     }
 
@@ -437,8 +439,6 @@ void processMovement() {
     else {
         keyReleasedN = true;
     }
-
-
 
     //update light and fog
     if (pressedKeys[GLFW_KEY_1]) {
@@ -560,7 +560,6 @@ void initUniforms() {
 	// send view matrix to shader
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-    // compute normal matrix for teapot
     normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
 	normalMatrixLoc = glGetUniformLocation(myBasicShader.shaderProgram, "normalMatrix");
 
@@ -731,16 +730,6 @@ void initPoints() {
     points[17].angle = -7.77;
 }
 
-//animation
-double lastTimeStampCarUpdate = glfwGetTime();
-void updateCarPosition() {
-    double currentTime = glfwGetTime();
-    if (currentTime - lastTimeStampCarUpdate >= 0.01) {
-        moveCar();
-        lastTimeStampCarUpdate = currentTime;
-    }
-}
-
 glm::vec3 catmullRomInterpolation(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t) {
     float t2 = t * t;
     float t3 = t2 * t;
@@ -782,6 +771,16 @@ void moveCar() {
     carAngle = interpolateAngle(points[p1].angle, points[p2].angle, t);
 
     currentIntermediatePoint++;
+}
+
+//animation
+double lastTimeStampCarUpdate = glfwGetTime();
+void updateCarPosition() {
+    double currentTime = glfwGetTime();
+    if (currentTime - lastTimeStampCarUpdate >= 0.01) {
+        moveCar();
+        lastTimeStampCarUpdate = currentTime;
+    }
 }
 
 void renderCar(gps::Shader shader, bool depthPass) {
@@ -936,7 +935,6 @@ void renderSkyBox(gps::Shader shader) {
     shader.useShaderProgram();
     mySkyBox.Draw(skyboxShader, view, projection);
 }
-
 void animations() {
     if (carAnimation) {
         updateCarPosition();
@@ -1020,7 +1018,7 @@ void cleanupRain() {
     glDeleteBuffers(1, &vbo);
 }
 
-//camera
+//camera animation
 void moveCamera() {
     glm::vec4 transformedPos = glm::vec4(cameraOffset, 1.0f);
     glm::mat4 transformMatrix = glm::mat4(1.0f);
@@ -1196,3 +1194,4 @@ int main(int argc, const char * argv[]) {
 
     return EXIT_SUCCESS;
 }
+
