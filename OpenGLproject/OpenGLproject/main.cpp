@@ -56,6 +56,9 @@ GLint lightPosLoc1;
 GLint lightPosLoc2;
 GLint lightPosLoc3;
 GLint lightPosLoc4;
+GLint lightPosLoc5;
+GLint lightPosLoc6;
+GLint lightPosLoc7;
 
 GLint rearLightOnLoc;
 GLint rearLightCubeOnLoc;
@@ -100,6 +103,15 @@ GLfloat lightCubeAngle3 = 0.0f;
 gps::Model3D lightCube4;
 glm::vec3 lightCubePos4 = glm::vec3(-0.316f, 1.323f, 7.253839f);
 GLfloat lightCubeAngle4 = 1.570796f;
+//light 5
+gps::Model3D lightCube5;
+glm::vec3 lightCubePos5 = glm::vec3(-6.200006f, 0.763f, -1.45f);
+//light 6
+gps::Model3D lightCube6;
+glm::vec3 lightCubePos6 = glm::vec3(-6.200006f, 0.763f, -2.849998f);
+//light 7
+gps::Model3D lightCube7;
+glm::vec3 lightCubePos7 = glm::vec3(-6.200006f, 0.763f, -4.249998f);
 //rear light
 gps::Model3D rearLightCube;
 glm::vec3 rearLightCubeOffset = glm::vec3(0.992991f, 0.017006f, 0.0f);
@@ -513,6 +525,7 @@ void initModels() {
     lightCube2.LoadModel("models/cube/cube.obj");
     lightCube3.LoadModel("models/cube/cube.obj");
     lightCube4.LoadModel("models/cube/cube.obj");
+    lightCube5.LoadModel("models/cube/cube.obj");
     screenQuad.LoadModel("models/quad/quad.obj");
     rearLightCube.LoadModel("models/cube/cube.obj");
 }
@@ -585,13 +598,15 @@ void initUniforms() {
 
     //set solid on false
     glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "solidView"), 0);
-    glUniform1i(glGetUniformLocation(skyboxShader.shaderProgram, "solidView"), 0);
 
     //light
     lightPosLoc1 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos1");
     lightPosLoc2 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos2");
     lightPosLoc3 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos3");
     lightPosLoc4 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos4");
+    lightPosLoc5 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos5");
+    lightPosLoc6 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos6");
+    lightPosLoc7 = glGetUniformLocation(myBasicShader.shaderProgram, "lightPos7");
 
     rearLightCubePosLoc = glGetUniformLocation(myBasicShader.shaderProgram, "rearLightPos");
     rearLightOnLoc = glGetUniformLocation(myBasicShader.shaderProgram, "rearLightOn");
@@ -638,9 +653,9 @@ void initUniforms() {
     //skybox
     skyboxShader.useShaderProgram();
     glUniform3fv(glGetUniformLocation(skyboxShader.shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
-    glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "solidView"), 0);
+    glUniform1i(glGetUniformLocation(skyboxShader.shaderProgram, "solidView"), 0);
 
-    ambientStrengthSkyBoxLoc = glGetUniformLocation(myBasicShader.shaderProgram, "ambientStrength");
+    ambientStrengthSkyBoxLoc = glGetUniformLocation(skyboxShader.shaderProgram, "ambientStrength");
     glUniform1f(ambientStrengthSkyBoxLoc, ambientStrength);
 
     //rain
@@ -890,6 +905,54 @@ void renderLightCube4(gps::Shader shaderLightCube, gps::Shader shader) {
     glUniform3fv(lightPosLoc4, 1, glm::value_ptr(lightCubePos4));
 }
 
+void renderLightCube5(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    glm::mat4 aux = model;
+
+    aux = glm::translate(aux, lightCubePos5);
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.012f, 0.065f));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube1.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc5, 1, glm::value_ptr(lightCubePos5));
+}
+
+void renderLightCube6(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    glm::mat4 aux = model;
+
+    aux = glm::translate(aux, lightCubePos6);
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.012f, 0.065f));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube1.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc6, 1, glm::value_ptr(lightCubePos6));
+}
+
+void renderLightCube7(gps::Shader shaderLightCube, gps::Shader shader) {
+    shaderLightCube.useShaderProgram();
+
+    glm::mat4 aux = model;
+
+    aux = glm::translate(aux, lightCubePos7);
+    aux = glm::scale(aux, glm::vec3(0.065f, 0.012f, 0.065f));
+
+    glUniformMatrix4fv(lightCubeModelLoc, 1, GL_FALSE, glm::value_ptr(aux));
+
+    lightCube1.Draw(shaderLightCube);
+
+    shader.useShaderProgram();
+    glUniform3fv(lightPosLoc7, 1, glm::value_ptr(lightCubePos7));
+}
+
 double lastTimeStampLightUpdate = glfwGetTime();
 void updateLight() {
     double currentTime = glfwGetTime();
@@ -1135,6 +1198,9 @@ void renderScene() {
         renderLightCube2(lightCubeShader, myBasicShader);
         renderLightCube3(lightCubeShader, myBasicShader);
         renderLightCube4(lightCubeShader, myBasicShader);
+        renderLightCube5(lightCubeShader, myBasicShader);
+        renderLightCube6(lightCubeShader, myBasicShader);
+        renderLightCube7(lightCubeShader, myBasicShader);
 
         renderRearLightCube(rearLightCubeShader, myBasicShader);
 

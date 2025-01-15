@@ -34,19 +34,36 @@ uniform vec3 lightPos1;
 uniform vec3 lightPos2;
 uniform vec3 lightPos3;
 uniform vec3 lightPos4;
+uniform vec3 lightPos5;
+uniform vec3 lightPos6;
+uniform vec3 lightPos7;
 
 //rear light
 uniform vec3 rearLightPos;
 uniform int rearLightOn;
 
-float constant = 1.0f; 
-float linear = 0.35f; 
-float quadratic = 0.44;
-
 //fog
 uniform float fogDensity;
 
-float computeAttenuation(vec3 lightPos, vec4 fPosEye) {
+float computeAttenuation1(vec3 lightPos, vec4 fPosEye) {
+    float constant = 1.0f; 
+    float linear = 0.35f; 
+    float quadratic = 0.44f;
+
+    //compute distance to light 
+    vec3 lightPosEye = vec3(view * vec4(lightPos, 1.0));
+    float dist = length(lightPosEye - fPosEye.xyz); 
+    //compute attenuation 
+    float att = 1.0f / (constant + linear * dist + quadratic * (dist * dist)); 
+
+    return att;
+}
+
+float computeAttenuation2(vec3 lightPos, vec4 fPosEye) {
+    float constant = 1.0f; 
+    float linear = 0.7f; 
+    float quadratic = 1.8f;
+
     //compute distance to light 
     vec3 lightPosEye = vec3(view * vec4(lightPos, 1.0));
     float dist = length(lightPosEye - fPosEye.xyz); 
@@ -80,12 +97,15 @@ void computeDirLight()
     float specCoeff = pow(max(dot(viewDir, reflectDir), 0.0f), 32);
     specular = specularStrength * specCoeff * lightColor;
 
-    float att1 = computeAttenuation(lightPos1, fPosEye);
-    float att2 = computeAttenuation(lightPos2, fPosEye);
-    float att3 = computeAttenuation(lightPos3, fPosEye);
-    float att4 = computeAttenuation(lightPos4, fPosEye);
+    float att1 = computeAttenuation1(lightPos1, fPosEye);
+    float att2 = computeAttenuation1(lightPos2, fPosEye);
+    float att3 = computeAttenuation1(lightPos3, fPosEye);
+    float att4 = computeAttenuation1(lightPos4, fPosEye);
+    float att5 = computeAttenuation2(lightPos5, fPosEye);
+    float att6 = computeAttenuation2(lightPos6, fPosEye);
+    float att7 = computeAttenuation2(lightPos7, fPosEye);
 
-    float att = max(att1, max(att2, max(att3, att4)));
+    float att = max(att1, max(att2, max(att3, max(att4, max(att5, max(att6, att7))))));
 
     if(rearLightOn == 1) {
         vec3 lightPosEye = vec3(view * vec4(rearLightPos, 1.0));

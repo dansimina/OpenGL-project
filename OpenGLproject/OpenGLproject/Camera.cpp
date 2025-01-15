@@ -73,5 +73,7 @@ namespace gps {
     void Camera::setCamera(glm::vec3 cameraPosition, glm::vec3 cameraTarget) {
         this->cameraPosition = cameraPosition;
         this->cameraTarget = cameraTarget;
+
+        updateCameraVectors();
     }
 }
