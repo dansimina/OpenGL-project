@@ -1241,7 +1241,7 @@ int main(int argc, const char * argv[]) {
     initPoints();
     initFBO();
     initSkyBox();
-    initRain(5000);
+    initRain(8000);
 
 	glCheckError();
 	// application loop
