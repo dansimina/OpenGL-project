@@ -4,6 +4,10 @@ This project implements a **Formula 1 circuit simulation** using **OpenGL**, fea
 
 ---
 
+![Photo](https://github.com/dansimina/OpenGL-project/blob/main/presentation_photo.png)
+
+---
+
 ## 📜 Project Overview
 
 ### 🏎️ Scene Description
